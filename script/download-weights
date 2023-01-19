@@ -1,0 +1,15 @@
+#!/usr/bin/env python
+
+import os
+from diffusers import DiffusionPipeline
+
+
+MODEL_ID = "stabilityai/stable-diffusion-2-depth"
+MODEL_CACHE = "diffusers-cache"
+
+os.makedirs(MODEL_CACHE, exist_ok=True)
+
+pipe = DiffusionPipeline.from_pretrained(
+    MODEL_ID,
+    cache_dir=MODEL_CACHE,
+)
