@@ -1,3 +1,4 @@
+.DS_Store
 .cog/
 __pycache__/
 diffusers-cache/

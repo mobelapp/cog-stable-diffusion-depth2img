@@ -12,4 +12,5 @@ os.makedirs(MODEL_CACHE, exist_ok=True)
 pipe = DiffusionPipeline.from_pretrained(
     MODEL_ID,
     cache_dir=MODEL_CACHE,
+    revision='fp16',
 )

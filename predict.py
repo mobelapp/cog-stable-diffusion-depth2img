@@ -4,7 +4,6 @@ from typing import List
 import torch
 from cog import BasePredictor, Input, Path
 from diffusers import (
-    StableDiffusionPipeline,
     StableDiffusionDepth2ImgPipeline,
     PNDMScheduler,
     LMSDiscreteScheduler,
@@ -18,6 +17,9 @@ from PIL import Image
 MODEL_ID = "stabilityai/stable-diffusion-2-depth"
 MODEL_CACHE = "diffusers-cache"
 
+torch.backends.cudnn.benchmark = True
+torch.backends.cuda.matmul.allow_tf32 = True
+
 
 class Predictor(BasePredictor):
     def setup(self):
@@ -27,14 +29,19 @@ class Predictor(BasePredictor):
             MODEL_ID,
             cache_dir=MODEL_CACHE,
             local_files_only=True,
+            revision='fp16',
             torch_dtype=torch.float16,
         ).to("cuda")
+
+        # Needs xformers
+        # self.pipe.enable_xformers_memory_efficient_attention()
+        # self.pipe.enable_vae_slicing()
 
     @torch.inference_mode()
     def predict(
         self,
         prompt: str = Input(
-            description="Input prompt",
+            description="The prompt to guide the image generation.",
             default="A fantasy landscape, trending on artstation",
         ),
         negative_prompt: str = Input(
@@ -42,10 +49,10 @@ class Predictor(BasePredictor):
             default=None,
         ),
         image: Path = Input(
-            description="Inital image to generate variations of.",
+            description="Image that will be used as the starting point for the process.",
         ),
         prompt_strength: float = Input(
-            description="Prompt strength when providing the image. 1.0 corresponds to full destruction of information in init image",
+            description="Prompt strength when providing the image. 1.0 corresponds to full destruction of information in init image.",
             default=0.8,
         ),
         num_outputs: int = Input(
@@ -55,10 +62,16 @@ class Predictor(BasePredictor):
             default=1,
         ),
         num_inference_steps: int = Input(
-            description="Number of denoising steps", ge=1, le=500, default=50
+            description="The number of denoising steps. More denoising steps usually lead to a higher quality image at the expense of slower inference.",
+            ge=1,
+            le=500,
+            default=50
         ),
         guidance_scale: float = Input(
-            description="Scale for classifier-free guidance", ge=1, le=20, default=7.5
+            description="Scale for classifier-free guidance. Higher guidance scale encourages to generate images that are closely linked to the text prompt, usually at the expense of lower image quality.",
+            ge=1,
+            le=20,
+            default=7.5
         ),
         scheduler: str = Input(
             default="DPMSolverMultistep",
@@ -91,12 +104,14 @@ class Predictor(BasePredictor):
         }
 
         output = self.pipe(
-            prompt=[prompt] * num_outputs if prompt is not None else None,
-            negative_prompt=[negative_prompt] * num_outputs
-            if negative_prompt is not None
-            else None,
+            # This will OOM if num_outputs > 1
+            # prompt=[prompt] * num_outputs if prompt is not None else None,
+            # negative_prompt=[negative_prompt] * num_outputs if negative_prompt is not None else None,
+            prompt=prompt,
+            negative_prompt=negative_prompt,
             guidance_scale=guidance_scale,
             generator=generator,
+            num_images_per_prompt=num_outputs,
             num_inference_steps=num_inference_steps,
             **extra_kwargs,
         )
