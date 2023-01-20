@@ -104,9 +104,6 @@ class Predictor(BasePredictor):
         }
 
         output = self.pipe(
-            # This will OOM if num_outputs > 1
-            # prompt=[prompt] * num_outputs if prompt is not None else None,
-            # negative_prompt=[negative_prompt] * num_outputs if negative_prompt is not None else None,
             prompt=prompt,
             negative_prompt=negative_prompt,
             guidance_scale=guidance_scale,
@@ -114,6 +111,10 @@ class Predictor(BasePredictor):
             num_images_per_prompt=num_outputs,
             num_inference_steps=num_inference_steps,
             **extra_kwargs,
+
+            # This will OOM if num_outputs > 1
+            # prompt=[prompt] * num_outputs if prompt is not None else None,
+            # negative_prompt=[negative_prompt] * num_outputs if negative_prompt is not None else None,
         )
 
         output_paths = []
